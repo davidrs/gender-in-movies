@@ -1,6 +1,16 @@
 
 body {
   font: 11px sans-serif;
+  padding-left:10px;
+}
+
+
+.intro{
+  margin:15px;
+}
+
+.intro p{
+  font: 14px sans-serif;
 }
 
 .axis path,
@@ -16,10 +26,11 @@ body {
 
 .tooltip {
   position: absolute;
-  padding:4px;
+  padding:5px;
   border-radius: 4px;
+  font: 14px sans-serif;
   /*width: 200px;*/
-  height: 28px;
+  /*height: 28px;*/
   background-color: #eee;
   pointer-events: none;
 }
