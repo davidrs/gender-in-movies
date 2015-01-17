@@ -2,30 +2,36 @@
 
 
 var app = {
-  start: function(){
-    app.loadMovieData().then(function(movieData){
-      app.movieData = movieData.results;
+  genres: ['Action','Romance', 'Comedy'],
+  movieData: [],
 
-      app.loadCastData().then(function(data){
-        console.log('data', data);
-        app.chartVertical(data,'movie_name', true);
-        charts.drawAllMoviesAllCast(data,"department", "All Movies By Department", false);
+  start: function(){
+    _(app.genres).each(function(genre){
+      app.loadMovieData(genre).then(function(movieData){
+        app.movieData = app.movieData.concat(movieData.results);
+
+        app.loadCastData(genre).then(function(data){
+          console.log('data',genre, data);
+          app.chartVertical(data,'movie_name', genre, true);
+          charts.drawAllMoviesAllCast(data,"department", genre +" Movies By Department", false);
+        });
       });
     });
+
   },
 
-  chartVertical: function(data, nestKey, SHOW_IMAGES){
-      charts.drawAllMoviesAllCast(data,nestKey, "Full Credits By "+nestKey, SHOW_IMAGES);
-      charts.drawAllMoviesOnlyActors(data, nestKey, SHOW_IMAGES);
-      charts.drawAllMoviesOnlyCrew(data, nestKey, SHOW_IMAGES);
+  chartVertical: function(data, nestKey, genre, SHOW_IMAGES){
+      charts.drawAllMoviesAllCast(data,nestKey, genre+" Full Credits", SHOW_IMAGES);
+      charts.drawAllMoviesOnlyActors(data, nestKey, genre, SHOW_IMAGES);
+      charts.drawAllMoviesOnlyCrew(data, nestKey, genre, SHOW_IMAGES);
   },
 
-  loadCastData: function(){
-    return $.get('castAry.json');
+  loadCastData: function(genre){
+    return $.get(genre+'castAry.json');
   },
 
-  loadMovieData: function(){
-    return $.get('movies.json');
+  loadMovieData: function(genre){
+    return $.get(genre+'movies.json');
   }
 };
 
@@ -34,18 +40,18 @@ app.start();
 var charts = {
   tooltip: null,
 
-  drawAllMoviesOnlyActors: function(data, nestKey, SHOW_IMAGES){
+  drawAllMoviesOnlyActors: function(data, nestKey, genre, SHOW_IMAGES){
     data = _(data).filter(function(d){
       return d.department === "actor";
     });
-    charts.drawAllMoviesAllCast(data,nestKey, "Actors Only By "+ nestKey, SHOW_IMAGES);
+    charts.drawAllMoviesAllCast(data,nestKey, genre + " Actors Only", SHOW_IMAGES);
   },
 
-  drawAllMoviesOnlyCrew: function(data, nestKey, SHOW_IMAGES){
+  drawAllMoviesOnlyCrew: function(data, nestKey,genre, SHOW_IMAGES){
     data = _(data).filter(function(d){
       return d.department !== "actor";
     });
-    charts.drawAllMoviesAllCast(data, nestKey, "Crew Only By "+ nestKey, SHOW_IMAGES);
+    charts.drawAllMoviesAllCast(data, nestKey, genre + " Crew Only", SHOW_IMAGES);
   },
 
   drawAllMoviesAllCast: function(data,  nestKey, title, SHOW_IMAGES){
@@ -92,8 +98,9 @@ var charts = {
 
     var circles = svg.selectAll('g').data(data).enter().append('g').append('circle')
       .attr('cx', function(d,i){
-        return x(d.values[xKey]);
+        return x((d.values[xKey]? d.values[xKey] : 0 ));
       }).attr('cy', function(d,i){
+        console.log('d.values[yKey]', d.values[yKey], d);
         return y((d.values[yKey] ? d.values[yKey] : 0 ));
       }).attr('r', function(d,i){
         return (SHOW_IMAGES ? 25 : Math.sqrt(d.values[sizeKey]));
@@ -102,17 +109,26 @@ var charts = {
         charts.createPattern(svg, d, x, y, xKey, yKey, patternId);
         return  (SHOW_IMAGES ? "url(#"+patternId+")" : colors(d.key));
       }).on("mouseover", function(d) {
+        if(SHOW_IMAGES){
+          d3.select(this).transition().duration(500)
+            .attr("r",  36);
+        }
           charts.tooltip.transition()
                .duration(200)
                .style("opacity", .9);
-          charts.tooltip.html('<strong>'+d.key + "</strong><br/> " + Math.round(100*d.values[yKey] / d.values.total) + "% female ")
-               .style("left", (d3.event.pageX + 5) + "px")
+          charts.tooltip.html('<strong>'+d.key + "</strong><br/> " + Math.round(100*(d.values[yKey]?d.values[yKey]:0) / d.values.total) + "% female ")
+               .style("left", (d3.event.pageX + 20) + "px")
                .style("top", (d3.event.pageY - 28) + "px");
       })
       .on("mouseout", function(d) {
           charts.tooltip.transition()
                .duration(500)
                .style("opacity", 0);
+
+        if(SHOW_IMAGES){
+          d3.select(this).transition().duration(500)
+            .attr("r", 25);
+        }
       })
         .append("title")
           .text(function(d) {return d.key;});
@@ -130,10 +146,10 @@ var charts = {
         .attr('id', patternId)
         .attr('patternUnits', 'userSpaceOnUse')
         .attr('x', function(){
-          return (d.values[xKey] ? x(d.values[xKey])-40: 0);
+          return (d.values[xKey] ? x(d.values[xKey])-60: 0);
         })
         .attr('y', function(){
-          return (d.values[yKey] ? y(d.values[yKey])-25: 0);
+          return (d.values[yKey] ? y(d.values[yKey])-36: 0);
         })
         .attr('width', '130')
         .attr('height', '73')
@@ -141,8 +157,8 @@ var charts = {
         .attr('xlink:href', "https://image.tmdb.org/t/p/w130/"+ movieMatch.backdrop_path)
         .attr('x', 0)
         .attr('y', 0)
-        .attr('width', 130*2/3)
-        .attr('height', 73*2/3);
+        .attr('width', 130)
+        .attr('height', 73);
   },
   addImageDefs: function(svg, data, yKey){
      var defs = svg.append('svg:defs').attr('class', 'defs');
